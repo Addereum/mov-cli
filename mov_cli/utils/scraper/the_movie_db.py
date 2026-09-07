@@ -31,7 +31,7 @@ class TheMovieDB():
         limit = 20 if limit is None else limit
 
         metadata = []
-        response = self.http_client.get(f"{self.base_url}/search", params = {"query": query})
+        response = self.http_client.request("GET", f"{self.base_url}/search", params = {"query": query}, include_default_headers = True)
         soup = self.soup(response.text)
 
         movie_items = soup.find("div", {"class": "movie"}).find_all("div", {"class": "card v4 tight"})
@@ -54,7 +54,7 @@ class TheMovieDB():
                 type = MetadataType.SINGLE if "movie" in item.parent.parent.attrs["class"] else MetadataType.MULTI,
                 image_url = image,
                 year = release_date.text.split(" ")[-1] if release_date is not None else None,
-                extra_func = lambda: self.__scrape_extra_metadata(item)
+                extra_func = lambda item=item: self.__scrape_extra_metadata(item)
             ))
 
         return metadata[:limit]
@@ -63,7 +63,7 @@ class TheMovieDB():
         episodes_dict = {}
         url = f"{self.base_url}/tv/{metadata.id}/seasons"
 
-        seasons_page = self.http_client.get(url, redirect=True)
+        seasons_page = self.http_client.request("GET", url, redirect=True, include_default_headers = True)
         soup = self.soup(seasons_page)
 
         seasons = soup.findAll("div", {"class": "season_wrapper"})
@@ -98,8 +98,8 @@ class TheMovieDB():
         type = item.parent.parent.attrs["class"]
         url = f"{self.base_url}/{type}/{id}"
 
-        page = self.http_client.get(url, redirect=True)
-        cast_page = self.http_client.get(f"{url}/cast", redirect=True)
+        page = self.http_client.request("GET", url, redirect=True, include_default_headers = True)
+        cast_page = self.http_client.request("GET", f"{url}/cast", redirect=True, include_default_headers = True)
 
         soup = self.soup(page)
         soup_c = self.soup(cast_page)

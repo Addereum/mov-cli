@@ -82,8 +82,39 @@ class MPV(Player):
             )
 
         elif self.platform == "Linux" or self.platform == "Windows" or self.platform == "Darwin" or self.platform == "FreeBSD":
+            mpv_executable = "mpv"
+            if self.platform == "Windows":
+                import shutil
+                import os
+                if shutil.which("mpv") is None:
+                    fallback_paths = [
+                        os.path.expanduser(r"~\Desktop\mov\mpv\mpv.exe"),
+                        r"C:\Program Files\mpv\mpv.exe",
+                        r"C:\Program Files (x86)\mpv\mpv.exe",
+                        os.path.expandvars(r"%LOCALAPPDATA%\Microsoft\WindowsApps\mpv.exe")
+                    ]
+                    for p in fallback_paths:
+                        if os.path.exists(p):
+                            mpv_executable = p
+                            break
+
+            if "youtube.com" in media.url or "youtu.be" in media.url:
+                yt_dlp_process = subprocess.Popen(
+                    ["yt-dlp", "-o", "-", media.url, "--js-runtimes", "node", "--remote-components", "ejs:github"],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.DEVNULL
+                )
+                mpv_process = subprocess.Popen(
+                    [mpv_executable, "-"] + self._get_args(self.platform, media),
+                    stdin=yt_dlp_process.stdout,
+                    stdout=(subprocess.STDOUT if self.debug else subprocess.DEVNULL),
+                    stderr=subprocess.STDOUT
+                )
+                yt_dlp_process.stdout.close()
+                return mpv_process
+
             default_args = [
-                "mpv", 
+                mpv_executable, 
                 media.url
             ]
 

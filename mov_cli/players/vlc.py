@@ -80,8 +80,22 @@ class VLC(Player):
             return None
 
         elif self.platform == "Linux" or self.platform == "Windows" or self.platform == "FreeBSD":
+            vlc_executable = "vlc"
+            if self.platform == "Windows":
+                import shutil
+                import os
+                if shutil.which("vlc") is None:
+                    fallback_paths = [
+                        r"C:\Program Files\VideoLAN\VLC\vlc.exe",
+                        r"C:\Program Files (x86)\VideoLAN\VLC\vlc.exe"
+                    ]
+                    for p in fallback_paths:
+                        if os.path.exists(p):
+                            vlc_executable = p
+                            break
+
             default_args = [
-                "vlc", 
+                vlc_executable, 
                 media.url
             ]
 

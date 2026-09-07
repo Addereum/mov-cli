@@ -67,13 +67,17 @@ class Plugin:
         return getattr(self.module, "__version__", None)
 
     def default_scraper(self, platform: SUPPORTED_PLATFORMS) -> Optional[Scraper]:
+        generic_default = None
 
         for scraper_namespace, scraper_class in self.hook_data["scrapers"].items():
 
-            if scraper_namespace == f"{platform}.DEFAULT" or scraper_namespace == "DEFAULT":
+            if scraper_namespace == f"{platform}.DEFAULT":
                 return scraper_class
 
-        return None
+            if scraper_namespace == "DEFAULT" and generic_default is None:
+                generic_default = scraper_class
+
+        return generic_default
 
 def load_plugin(module_name: str) -> Optional[Plugin]:
     try:

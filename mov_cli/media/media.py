@@ -87,9 +87,12 @@ class Media():
                     quality_height for quality_height in Quality._value2member_map_ if target_dimension_px >= quality_height
                 ]
 
-                closest_quality_height = min(heights_lower_than_target_height, key = lambda x: abs(x - target_dimension_px))
+                if not heights_lower_than_target_height:
+                    self.__stream_quality = Quality.AUTO
+                else:
+                    closest_quality_height = min(heights_lower_than_target_height, key = lambda x: abs(x - target_dimension_px))
 
-                self.__stream_quality = Quality(closest_quality_height)
+                    self.__stream_quality = Quality(closest_quality_height)
 
         return self.__stream_quality
 

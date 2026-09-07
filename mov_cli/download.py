@@ -6,6 +6,8 @@ import shutil
 import subprocess
 import unicodedata
 
+from rich.console import Console
+
 __all__ = ("Download",)
 
 if TYPE_CHECKING:
@@ -13,9 +15,11 @@ if TYPE_CHECKING:
     from .media import Multi, Single
 
 from .logger import mov_cli_logger
+from .utils.cookies import get_cookie_file
 from devgoldyutils import LoggerAdapter
 
 logger = LoggerAdapter(mov_cli_logger, "Downloader")
+console = Console()
 
 class Download():
     def __init__(self, config: Config) -> None:
@@ -24,7 +28,10 @@ class Download():
     def download(self, media: Multi | Single, subtitles: str = None) -> subprocess.Popen:
         title = unicodedata.normalize('NFKD', media.display_name).encode('ascii', 'ignore').decode('ascii').replace("/", " ") # normalize title
 
-        file_path = os.path.join(self.config.download_location, title + ".mp4")
+        download_dir = getattr(self.config, 'downloads_dir', self.config.download_location)
+        file_path = os.path.join(download_dir, title + ".mp4")
+
+        console.print(f"[bold green]Downloading {title}...[/bold green]")
 
         use_yt_dlp = self.config.use_yt_dlp
 
@@ -46,8 +53,16 @@ class Download():
                 file_path,
                 "--downloader", 
                 "ffmpeg", 
-                "--hls-use-mpegts"
+                "--hls-use-mpegts",
+                "--js-runtimes",
+                "node",
+                "--remote-components",
+                "ejs:github"
             ]
+
+            cookie_file = get_cookie_file(self.config)
+            if cookie_file is not None:
+                args.extend(["--cookies", cookie_file])
 
             if self.config.debug is False:
                 args.append("--quiet")
@@ -61,19 +76,24 @@ class Download():
             args = [
                 "ffmpeg",
                 "-n",
-                "-headers",
-                f"Referer: {media.referrer}",
-                "-i",
-                media.url,
             ]
+
+            cookie_file = get_cookie_file(self.config)
+            if cookie_file is not None:
+                args.extend(["-cookies", cookie_file])
+
+            if media.referrer is not None:
+                args.extend(["-headers", f"Referer: {media.referrer}"])
+
+            args.extend(["-i", media.url])
 
             if media.audio_url:
                 args.extend(["-i", media.audio_url])
 
             if subtitles:
-                args.extend(["-vf", f"subtitle={subtitles}"])
-
-            args.extend(["-c", "copy", file_path])
+                args.extend(["-vf", f"subtitle={subtitles}", file_path])
+            else:
+                args.extend(["-c", "copy", file_path])
 
         return subprocess.Popen(args)
 

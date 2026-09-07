@@ -7,13 +7,15 @@ if TYPE_CHECKING:
     from httpx import Response
 
 import httpx
-from deprecation import deprecated
+import warnings
+from http.cookiejar import MozillaCookieJar
 from devgoldyutils import LoggerAdapter, Colours
 
-from . import __version__
 from .utils import hide_ip
+from .utils.cookies import get_cookie_file
 from .logger import mov_cli_logger
 from .errors import SiteMaybeBlockedError
+from .config import Config
 
 __all__ = ("HTTPClient",)
 
@@ -22,19 +24,50 @@ class HTTPClient():
         self, 
         headers: Optional[Dict[str, str]] = None, 
         timeout: int = 15, 
-        hide_ip: bool = True
+        hide_ip: bool = True,
+        proxy: Optional[Dict[str, str]] = None,
+        config: Optional[Config] = None
     ) -> None:
         self.hide_ip = hide_ip
         self.headers = headers or {}
+        self.proxy = proxy
 
         self.logger = LoggerAdapter(mov_cli_logger, prefix = self.__class__.__name__)
 
+        if self.proxy:
+            self.logger.debug(f"Using proxy -> {self.proxy}")
+
+        cookies = None
+        
+        if config is None:
+            config = Config()
+            
+        cookie_file = get_cookie_file(config)
+        if cookie_file is not None:
+            try:
+                cj = MozillaCookieJar(cookie_file)
+                cj.load(ignore_discard=True, ignore_expires=True)
+                cookies = cj
+            except Exception as e:
+                self.logger.warning(f"Failed to load cookies from {cookie_file}: {e}")
+
         self.__httpx_client = httpx.Client(
             timeout = timeout, 
-            cookies = None
+            cookies = cookies,
+            proxy = self.proxy
         )
 
         super().__init__()
+
+    def close(self) -> None:
+        """Close the underlying httpx client and release connections."""
+        self.__httpx_client.close()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args):
+        self.close()
 
     def request(
         self, 
@@ -79,17 +112,26 @@ class HTTPClient():
             return response
 
         except httpx.ConnectError as e:
-            # TODO: I think this needs improving. I see people are getting certificate errors that aren't being caught here.
-            if "[SSL: CERTIFICATE_VERIFY_FAILED]" in str(e):
+            error_str = str(e)
+
+            if any(ssl_hint in error_str for ssl_hint in (
+                "[SSL: CERTIFICATE_VERIFY_FAILED]",
+                "[SSL]",
+                "CERTIFICATE_VERIFY_FAILED",
+                "SSLError",
+                "SSLCertVerificationError",
+            )):
                 raise SiteMaybeBlockedError(url, e)
 
             raise e
 
-    @deprecated(
-        deprecated_in = "4.4", 
-        current_version = __version__, 
-        details = "Switch to 'HTTPClient.request()' for the latest functionality."
-    )
+        except httpx.ConnectTimeout as e:
+            self.logger.warning(
+                f"Connection to '{hide_ip(url, self.hide_ip)}' timed out. "
+                "The site may be down or your connection may be slow."
+            )
+            raise e
+
     def get(
         self, 
         url: str, 
@@ -98,7 +140,16 @@ class HTTPClient():
         redirect: bool = False, 
         **kwargs
     ) -> Response:
-        """Performs a GET request and returns httpx.Response."""
+        """Performs a GET request and returns httpx.Response.
+
+        .. deprecated:: 4.4
+            Use :meth:`HTTPClient.request` instead.
+        """
+        warnings.warn(
+            "HTTPClient.get() is deprecated since v4.4. Use HTTPClient.request() instead.",
+            DeprecationWarning,
+            stacklevel = 2
+        )
         return self.request(
             "GET", 
             url = url, 
@@ -108,11 +159,6 @@ class HTTPClient():
             **kwargs
         )
 
-    @deprecated(
-        deprecated_in = "4.4", 
-        current_version = __version__, 
-        details = "Switch to 'HTTPClient.request()' for the latest functionality."
-    )
     def post(
         self, 
         url: str,
@@ -123,8 +169,16 @@ class HTTPClient():
         redirect: bool = False, 
         **kwargs
     ) -> Response:
-        """Performs a POST request and returns httpx.Response."""
+        """Performs a POST request and returns httpx.Response.
 
+        .. deprecated:: 4.4
+            Use :meth:`HTTPClient.request` instead.
+        """
+        warnings.warn(
+            "HTTPClient.post() is deprecated since v4.4. Use HTTPClient.request() instead.",
+            DeprecationWarning,
+            stacklevel = 2
+        )
         return self.request(
             "POST", 
             url = url, 

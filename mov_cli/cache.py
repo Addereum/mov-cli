@@ -121,9 +121,9 @@ class Cache():
             json_data: Dict[str, BasicCacheData | Dict[str, BasicCacheData]] = json.load(file)
 
         if self.section is not None:
-            json_data[self.section].pop(id)
+            json_data.get(self.section, {}).pop(id, None)
         else:
-            json_data.pop(id)
+            json_data.pop(id, None)
 
         with self.__get_cache_file("w") as file:
             json.dump(json_data, file)
@@ -162,4 +162,4 @@ class Cache():
             with self._basic_cache_file_path.open("w") as file:
                 file.write("{}")
 
-        return self._basic_cache_file_path.open(mode, encoding = "utf+8")
+        return self._basic_cache_file_path.open(mode, encoding = "utf-8")

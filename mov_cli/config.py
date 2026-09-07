@@ -77,6 +77,7 @@ class ConfigData(TypedDict):
     quality: ConfigQualityData | str
     subtitle: ConfigSubtitleData
     auto_try_next_scraper: bool
+    proxy: ProxyData
 
 HttpHeadersData = TypedDict(
     "HttpHeadersData", 
@@ -84,6 +85,14 @@ HttpHeadersData = TypedDict(
         "User-Agent": NotRequired[str],
         "Accept-Language": NotRequired[str],
         "Accept": NotRequired[str]
+    }
+)
+
+ProxyData = TypedDict(
+    "ProxyData",
+    {
+        "http": NotRequired[str],
+        "https": NotRequired[str]
     }
 )
 
@@ -296,12 +305,23 @@ class Config():
 
     @property
     def language(self) -> Lang:
-        language = self.data.get("subtitle", {}).get("language", "en")
+        language = self.data.get("subtitle", self.data.get("subtitles", {})).get("language", "en")
 
         if lang_exists(language):
             return Lang(language)
     
         return Lang("en")
+
+    @property
+    def proxy(self) -> ProxyData | None:
+        proxy = self.data.get("proxy", {})
+        if not proxy:
+            return None
+        return proxy
+
+    @property
+    def cookies(self) -> str | None:
+        return self.data.get("cookies", None)
 
     def get_env_config(self) -> AutoConfig:
         """Returns python decouple config object for mov-cli's appdata .env file."""
@@ -338,7 +358,7 @@ class Config():
         env_file_path = appdata_folder.joinpath(".env")
 
         if not env_file_path.exists():
-            logger.debug("The 'config.toml' file doesn't exist so we're creating it...")
+            logger.debug("The '.env' file doesn't exist so we're creating it...")
             open(env_file_path, "w").close()
             logger.info(f".env file created at '{env_file_path}'.")
 

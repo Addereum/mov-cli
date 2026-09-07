@@ -22,6 +22,8 @@ from devgoldyutils import Colours
 from .ui import prompt
 from .plugins import get_plugins_data
 
+from ..plugins import load_plugin
+
 from ..utils import what_platform
 from ..logger import mov_cli_logger
 from ..errors import InternalPluginError
@@ -127,10 +129,8 @@ def select_scraper(
     fzf_enabled: bool,
     default_scraper: Optional[str] = None
 ) -> Optional[SelectedScraperT]:
-    plugins_data = get_plugins_data(plugins)
-
     if default_scraper is not None:
-        scraper_name, scraper_or_available_scrapers, scraper_options = get_scraper(default_scraper, plugins_data, scrapers)
+        scraper_name, scraper_or_available_scrapers, scraper_options = get_scraper(default_scraper, plugins, scrapers)
 
         if scraper_name is None:
             mov_cli_logger.error(
@@ -151,6 +151,8 @@ def select_scraper(
             return None
 
         return scraper_name, scraper_or_available_scrapers, scraper_options
+
+    plugins_data = get_plugins_data(plugins)
 
     chosen_plugin = prompt(
         "Select a plugin", 
@@ -217,35 +219,44 @@ def steal_scraper_args(query: List[str]) -> ScraperOptionsT:
 
     return dict(scraper_options_args)
 
-def get_scraper(scraper_id: str, plugins_data: PluginsDataT, user_defined_scrapers: ScrapersConfigT) -> Tuple[str, Type[Scraper] | Tuple[None, List[str]], ScraperOptionsT]:
+def get_scraper(scraper_id: str, plugins: Dict[str, str], user_defined_scrapers: ScrapersConfigT) -> Tuple[Optional[str], Type[Scraper] | List[str], ScraperOptionsT]:
     scraper_options = {}
-    available_scrapers = []
 
     # scraper namespace override.
     for scraper_namespace, scraper_data in user_defined_scrapers.items():
-
         if scraper_id.lower() == scraper_namespace.lower():
             mov_cli_logger.debug(f"Using the scraper overridden namespace '{scraper_namespace}'...")
             scraper_id = scraper_data["namespace"]
             scraper_options = scraper_data["options"]
 
     platform = what_platform().upper()
+    plugin_namespace = scraper_id.split(".")[0]
 
-    for plugin_namespace, _, plugin in plugins_data:
-        plugin_scrapers = plugin.hook_data["scrapers"]
+    # Try to load only the specific plugin requested
+    plugin_module_name = plugins.get(plugin_namespace.lower())
+    
+    if plugin_module_name:
+        plugin = load_plugin(plugin_module_name)
+        if plugin:
+            plugin_scrapers = plugin.hook_data["scrapers"]
 
-        if scraper_id.lower() == plugin_namespace.lower() and f"{platform}.DEFAULT" in plugin_scrapers:
-            return f"{plugin_namespace}.{platform}.DEFAULT", plugin_scrapers[f"{platform}.DEFAULT"], scraper_options
+            if scraper_id.lower() == plugin_namespace.lower() and f"{platform}.DEFAULT" in plugin_scrapers:
+                return f"{plugin_namespace}.{platform}.DEFAULT", plugin_scrapers[f"{platform}.DEFAULT"], scraper_options
 
-        elif scraper_id.lower() == plugin_namespace.lower() and "DEFAULT" in plugin_scrapers:
-            return f"{plugin_namespace}.DEFAULT", plugin_scrapers["DEFAULT"], scraper_options
+            elif scraper_id.lower() == plugin_namespace.lower() and "DEFAULT" in plugin_scrapers:
+                return f"{plugin_namespace}.DEFAULT", plugin_scrapers["DEFAULT"], scraper_options
 
-        for scraper_name, scraper in plugin_scrapers.items():
-            id = f"{plugin_namespace}.{scraper_name}".lower()
+            for scraper_name, scraper in plugin_scrapers.items():
+                id = f"{plugin_namespace}.{scraper_name}".lower()
+                if scraper_id.lower() == id:
+                    return id, scraper, scraper_options
 
-            available_scrapers.append(id)
-
-            if scraper_id.lower() == id:
-                return id, scraper, scraper_options
+    # Fallback: if not found, we load all plugins to collect available scrapers for the fuzzy finder suggestions
+    plugins_data = get_plugins_data(plugins)
+    available_scrapers = []
+    
+    for plugin_ns, _, plugin in plugins_data:
+        for scraper_name, _ in plugin.hook_data["scrapers"].items():
+            available_scrapers.append(f"{plugin_ns}.{scraper_name}".lower())
 
     return None, available_scrapers, scraper_options

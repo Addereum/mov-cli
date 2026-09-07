@@ -10,6 +10,8 @@
 
 <div align="center">
 
+  > **⚠️ NOTE:** This is an active fork of `mov-cli` maintained by a new community developer. The original maintainer has stopped working on this project and abandoned it. This fork brings modern fixes (such as working YouTube streaming via yt-dlp piping) and ongoing improvements!
+
   <a href="https://github.com/mov-cli/mov-cli">
     <img src="https://github.com/mov-cli/mov-cli/assets/132799819/a23bec13-881d-41b9-b596-b31c6698b89e" alt="Logo" width="250">
   </a>

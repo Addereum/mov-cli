@@ -27,13 +27,14 @@ dependencies = [
     "toml",
     "devgoldyutils>=3.0.0",
     "typer>=0.12.2",
-    "inquirer",
+    "questionary",
+    "rich",
     "beautifulsoup4",
     "Unidecode",
-    "deprecation",
     "packaging",
     "thefuzz",
     "python-decouple",
+    "browser-cookie3",
 ]
 
 dynamic = ["version"]
@@ -47,7 +48,8 @@ dev = [
     "sphinx-inline-tabs",
     "furo",
     "myst-parser",
-    "sphinx-copybutton"
+    "sphinx-copybutton",
+    "pytest"
 ]
 
 [project.urls]

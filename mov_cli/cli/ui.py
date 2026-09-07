@@ -18,11 +18,10 @@ import types
 import random
 import logging
 import getpass
-import inquirer
+import questionary
 import itertools
 from pathlib import Path
 from datetime import datetime
-from inquirer.themes import Default
 from devgoldyutils import Colours, LoggerAdapter
 
 import mov_cli
@@ -38,13 +37,16 @@ __all__ = (
 
 logger = LoggerAdapter(mov_cli_logger, prefix = Colours.PURPLE.apply("prompt"))
 
-class MovCliTheme(Default):
+class MovCliStyle(questionary.Style):
     def __init__(self):
-        super().__init__()
-        self.Question.mark_color = Colours.BLUE.value
-        self.Question.brackets_color = Colours.GREY.value
-        self.List.selection_color = Colours.CLAY.value
-        self.List.selection_cursor = "❯"
+        super().__init__([
+            ('qmark', 'fg:blue'),
+            ('question', 'bold'),
+            ('answer', 'fg:blue'),
+            ('pointer', 'fg:cyan'),
+            ('highlighted', 'fg:cyan'),
+            ('selected', 'fg:cyan'),
+        ])
 
 # Checking whether there's only one choice in prompt 
 # without losing performance is serious business at mov-cli. ~ Goldy 2024
@@ -108,16 +110,21 @@ def prompt(
         )
 
     else:
-        logger.debug("Launching inquirer (fallback ui)...")
-        inquirer_result = inquirer.prompt(
-            questions = [
-                inquirer.List("choices", message = text, choices = [display(before_display(x)) for x in choices])
-            ], 
-            theme = MovCliTheme()
-        )
-
-        if inquirer_result is not None:
-            choice_picked = inquirer_result["choices"]
+        logger.debug("Launching questionary (fallback ui)...")
+        import re
+        ansi_remover = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
+        evaluated_choices = [ansi_remover.sub('', display(before_display(x))) for x in choices]
+        
+        if not evaluated_choices:
+            logger.warning("No options available to choose from!")
+            return None
+            
+        choice_picked = questionary.select(
+            message = text, 
+            choices = evaluated_choices, 
+            style = MovCliStyle(),
+            pointer = "❯"
+        ).ask()
 
     # restore the logger
     mov_cli_logger.setLevel(previous_logger_level)

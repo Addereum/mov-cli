@@ -21,57 +21,63 @@ from .watch_options import watch_options
 from ..media import MetadataType
 from ..logger import mov_cli_logger
 from ..cache import Cache
+from ..history import WatchHistory
 from ..utils import what_platform, hide_ip
 from ..players import PLAYER_TABLE, CustomPlayer
 
 def play(media: Media, metadata: Metadata, scraper: Scraper, episode: EpisodeSelector, config: Config) -> Optional[Literal["search"]]:
     platform = what_platform()
     cache = Cache(platform)
-
-    cache.set_cache(str(metadata.id), episode.__dict__)
-
+    history = WatchHistory(platform)
     chosen_player = __get_player(config, platform)
 
-    quality_string = ""
-    episode_details_string = ""
+    while True:
+        cache.set_cache(str(metadata.id), episode.__dict__)
+        history.add_entry(metadata, episode, scraper.__class__.__name__)
 
-    if metadata.type == MetadataType.MULTI:
-        season_string = Colours.CLAY.apply(str(episode.season))
-        episode_string = Colours.ORANGE.apply(str(episode.episode))
+        quality_string = ""
+        episode_details_string = ""
 
-        episode_details_string = f"episode {episode_string} in season {season_string} of " if episode.season > 1 else f"episode {episode_string} of "
+        if metadata.type == MetadataType.MULTI:
+            season_string = Colours.CLAY.apply(str(episode.season))
+            episode_string = Colours.ORANGE.apply(str(episode.episode))
 
-    if config.display_quality:
-        quality = media.get_quality()
+            episode_details_string = f"episode {episode_string} in season {season_string} of " if episode.season > 1 else f"episode {episode_string} of "
 
-        if quality is not None:
-            quality_string = f"in {Colours.GREEN.apply(quality.name)} "
+        if config.display_quality:
+            quality = media.get_quality()
 
-    mov_cli_logger.info(
-        f"Playing {episode_details_string}'{Colours.BLUE.apply(media.title)}' " \
-            f"{quality_string}with {chosen_player.display_name}..."
-    )
+            if quality is not None:
+                quality_string = f"in {Colours.GREEN.apply(quality.name)} "
 
-    try:
-        popen = chosen_player.play(media)
-
-        mov_cli_logger.debug(f"Called player with these args -> '{hide_ip(' '.join(popen.args), config.hide_ip)}'")
-    except FileNotFoundError as e:
-        mov_cli_logger.error(
-            f"The player '{chosen_player.display_name}' was not found! " \
-                f"Are you sure you have it installed? Are you sure it's in path? \nError: {e}"
-        )
-        return None
-
-    if popen is None and platform != "iOS":
-        mov_cli_logger.error(
-            f"The player '{chosen_player.display_name}' is not supported on this platform ({platform}). " \
-            "We recommend VLC for iOS, IINA for MacOS and MPV for every other platform."
+        mov_cli_logger.info(
+            f"Playing {episode_details_string}'{Colours.BLUE.apply(media.title)}' " \
+                f"{quality_string}with {chosen_player.display_name}..."
         )
 
-        return None
+        try:
+            popen = chosen_player.play(media)
 
-    if config.watch_options:
+            mov_cli_logger.debug(f"Called player with these args -> '{hide_ip(' '.join(popen.args), config.hide_ip)}'")
+        except FileNotFoundError as e:
+            mov_cli_logger.error(
+                f"The player '{chosen_player.display_name}' was not found! " \
+                    f"Are you sure you have it installed? Are you sure it's in path? \nError: {e}"
+            )
+            return None
+
+        if popen is None and platform != "iOS":
+            mov_cli_logger.error(
+                f"The player '{chosen_player.display_name}' is not supported on this platform ({platform}). " \
+                "We recommend VLC for iOS, IINA for MacOS and MPV for every other platform."
+            )
+
+            return None
+
+        if not config.watch_options:
+            popen.wait()
+            return None
+
         option = watch_options(popen, chosen_player, platform, media, config.fzf_enabled)
 
         if option == "next" or option == "previous":
@@ -97,8 +103,7 @@ def play(media: Media, metadata: Metadata, scraper: Scraper, episode: EpisodeSel
                 return None
 
             media = scrape(metadata, episode, scraper)
-
-            return play(media, metadata, scraper, episode, config)
+            continue  # loop back to play the next episode
 
         elif option == "select":
             popen.kill()
@@ -109,12 +114,11 @@ def play(media: Media, metadata: Metadata, scraper: Scraper, episode: EpisodeSel
                 return None
 
             media = scrape(metadata, episode, scraper)
+            continue  # loop back to play the selected episode
 
-            return play(media, metadata, scraper, episode, config)
-
-    popen.wait()
-
-    return None
+        # No recognized option (quit/replay finished) — exit loop
+        popen.wait()
+        return None
 
 def __get_player(config: Config, platform: SUPPORTED_PLATFORMS) -> Player:
     player = PLAYER_TABLE.get(config.player, CustomPlayer)

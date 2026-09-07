@@ -11,6 +11,8 @@ quality = "auto"
 skip_update_checker = false
 auto_try_next_scraper = false
 hide_ip = true
+# cookies = "firefox"
+# cookies = "path/to/cookies.txt"
 
 # [mov-cli.quality]
 # resolution = 720
@@ -32,6 +34,10 @@ test = "test.DEFAULT"
 [mov-cli.http] # Don't mess with it if you don't know what you are doing!
 timeout = 15
 # headers = { User-Agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/117.0" }
+
+# [mov-cli.proxy]
+# http = "socks5://127.0.0.1:1080"
+# https = "socks5://127.0.0.1:1080"
 
 # [mov-cli.downloads] # Do not use backslashes use forward slashes
 # save_path = "~/Downloads"

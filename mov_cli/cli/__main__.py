@@ -9,6 +9,8 @@ import shutil
 import logging
 from pathlib import Path
 
+from rich.console import Console
+
 from .play import play
 from .ui import welcome_msg
 from .plugins import show_all_plugins
@@ -20,11 +22,16 @@ from ..config import Config
 from ..download import Download
 from ..logger import mov_cli_logger
 from ..http_client import HTTPClient
+from ..history import WatchHistory
+from ..media import MetadataType
 from ..utils import hide_ip, get_temp_directory, what_platform, get_cache_directory
+from devgoldyutils import Colours
+import datetime
 
 __all__ = ("mov_cli",)
 
 uwu_app = typer.Typer(pretty_exceptions_enable = False) # NOTE: goldy has an uwu complex.
+console = Console()
 
 def mov_cli(
     query: Optional[List[str]] = typer.Argument(None, help = "A film, tv show or anime you would like to Query."), 
@@ -46,9 +53,24 @@ def mov_cli(
     list_plugins: bool = typer.Option(False, "--list-plugins", "-lp", help = "Prints all configured plugins and their scrapers."), 
     clear_cache: bool = typer.Option(False, "--no-cache", "--clear-cache", help = "Clears ALL cache stored by mov-cli, including the temp directory cache."),
     auto_try_next_scraper: bool = typer.Option(False, "--auto-try-next-scraper", "--atns", help = "Enables auto try next scraper."),
+    history: bool = typer.Option(False, "--history", "-hi", help = "Display your watch history."),
+    batch: Optional[str] = typer.Option(None, "--batch", "-b", help = "Batch download episodes. E.g. 1-12"),
 ):
     config = Config()
     platform = what_platform()
+
+    if history:
+        watch_history = WatchHistory(platform)
+        entries = watch_history.get_history()
+        if not entries:
+            print("Your watch history is empty.")
+        else:
+            print(Colours.BLUE.apply("=== Watch History ==="))
+            for i, entry in enumerate(entries, 1):
+                dt = datetime.datetime.fromtimestamp(entry['timestamp']).strftime('%Y-%m-%d %H:%M')
+                ep_info = f" [{Colours.ORANGE.apply(entry['episode'])}]" if entry['episode'] else ""
+                print(f"{i}. {Colours.GREEN.apply(entry['title'])}{ep_info} ({entry['scraper_name']}) - {Colours.CLAY.apply(dt)}")
+        return None
 
     config = set_cli_config(
         config,
@@ -106,7 +128,9 @@ def mov_cli(
         http_client = HTTPClient(
             headers = config.http_headers, 
             timeout = config.http_timeout, 
-            hide_ip = config.hide_ip
+            hide_ip = config.hide_ip,
+            proxy = config.proxy,
+            config = config
         )
 
         selected_scraper = select_scraper(
@@ -147,12 +171,41 @@ def mov_cli(
         if download:
             dl = Download(config)
 
-            mov_cli_logger.debug(f"Downloading from this url -> '{hide_ip(media.url, config.hide_ip)}'")
+            if batch and metadata.type == MetadataType.MULTI:
+                try:
+                    start_ep, end_ep = map(int, batch.split("-"))
+                except ValueError:
+                    mov_cli_logger.error("Invalid batch format. Use START-END e.g., '1-12'")
+                    raise typer.Exit(1)
+                
+                mov_cli_logger.info(f"Starting batch download from episode {start_ep} to {end_ep}")
+                from .scraper import scrape
+                
+                for ep_num in range(start_ep, end_ep + 1):
+                    chosen_episode.episode = ep_num
+                    mov_cli_logger.info(f"Scraping episode {ep_num}...")
+                    
+                    try:
+                        media_ep = scrape(metadata, chosen_episode, chosen_scraper)
+                    except Exception as e:
+                        mov_cli_logger.error(f"Failed to scrape episode {ep_num}: {e}")
+                        continue
+                        
+                    if media_ep:
+                        mov_cli_logger.debug(f"Downloading from this url -> '{hide_ip(media_ep.url, config.hide_ip)}'")
+                        popen = dl.download(media_ep)
+                        if popen:
+                            popen.wait()
+            else:
+                if batch:
+                    mov_cli_logger.warning("Batch flag ignored because media is not MULTI type.")
 
-            popen = dl.download(media)
-            
-            if popen:
-                popen.wait()
+                mov_cli_logger.debug(f"Downloading from this url -> '{hide_ip(media.url, config.hide_ip)}'")
+
+                popen = dl.download(media)
+                
+                if popen:
+                    popen.wait()
 
         else:
             play(media, metadata, chosen_scraper, chosen_episode, config)
