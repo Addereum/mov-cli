@@ -1,0 +1,35 @@
+# Maintainer: Addereum
+pkgname=mov-cli-go-git
+pkgver=5.0.0
+pkgrel=1
+pkgdesc="Watch everything from your terminal. (GoLang V5 Rewrite)"
+arch=('x86_64' 'aarch64')
+url="https://github.com/Addereum/mov-cli"
+license=('MIT')
+depends=('mpv' 'yt-dlp')
+makedepends=('git' 'go')
+provides=('mov-cli')
+conflicts=('mov-cli' 'mov-cli-git')
+source=("git+https://github.com/Addereum/mov-cli.git#branch=v5")
+sha256sums=('SKIP')
+
+pkgver() {
+  cd "$srcdir/mov-cli"
+  git describe --long --tags 2>/dev/null | sed 's/\([^-]*-g\)/r\1/;s/-/./g' ||
+  printf "r%s.%s" "$(git rev-list --count HEAD)" "$(git rev-parse --short HEAD)"
+}
+
+build() {
+  cd "$srcdir/mov-cli"
+  export CGO_ENABLED=0
+  go build -trimpath -ldflags "-s -w" -o mov-cli
+}
+
+package() {
+  cd "$srcdir/mov-cli"
+  install -Dm755 mov-cli "$pkgdir/usr/bin/mov-cli"
+  
+  # Install JS plugins to a shared directory (Future proofing)
+  install -dm755 "$pkgdir/usr/share/mov-cli/plugins"
+  install -Dm644 plugins/*.js "$pkgdir/usr/share/mov-cli/plugins/"
+}
