@@ -3,9 +3,13 @@ package engine
 import (
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"os/exec"
+	"strings"
 
+	"github.com/PuerkitoBio/goquery"
 	"github.com/dop251/goja"
 )
 
@@ -23,15 +27,44 @@ func RunJSPlugin(filepath string, query string) ([]SearchResult, error) {
 	vm := goja.New()
 
 	coreObj := vm.NewObject()
+	
+	// Legacy / Helper: Run commands
 	coreObj.Set("runCmd", func(name string, args ...string) string {
-		out, err := exec.Command(name, args...).CombinedOutput()
-		if err != nil {
-			// Print standard error to help debug JS plugin issues if yt-dlp fails
-			fmt.Fprintf(os.Stderr, "[Plugin Debug] runCmd failed: %v\nOutput: %s\n", err, string(out))
-			return ""
-		}
+		out, _ := exec.Command(name, args...).CombinedOutput()
 		return string(out)
 	})
+
+	// NEW: Native HTTP Request
+	coreObj.Set("fetch", func(url string) string {
+		resp, err := http.Get(url)
+		if err != nil {
+			return ""
+		}
+		defer resp.Body.Close()
+		b, _ := io.ReadAll(resp.Body)
+		return string(b)
+	})
+
+	// NEW: Native HTML Parser (GoQuery)
+	coreObj.Set("parseHTML", func(html string, selector string, attr string) []string {
+		doc, err := goquery.NewDocumentFromReader(strings.NewReader(html))
+		if err != nil {
+			return nil
+		}
+		
+		var results []string
+		doc.Find(selector).Each(func(i int, s *goquery.Selection) {
+			if attr == "text" {
+				results = append(results, s.Text())
+			} else {
+				if val, exists := s.Attr(attr); exists {
+					results = append(results, val)
+				}
+			}
+		})
+		return results
+	})
+
 	vm.Set("__core", coreObj)
 
 	_, err = vm.RunString(string(scriptBytes))
@@ -45,7 +78,6 @@ func RunJSPlugin(filepath string, query string) ([]SearchResult, error) {
 		return nil, fmt.Errorf("plugin must export a 'search' function returning JSON string: %v", err)
 	}
 
-	// Catch any panics from the JavaScript execution (e.g. JSON.parse on empty string)
 	var jsonOutput string
 	func() {
 		defer func() {
