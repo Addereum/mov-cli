@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/AlecAivazis/survey/v2"
-	"mov-cli-go/internal/engine"
+	"github.com/Addereum/mov-cli/internal/engine"
 )
 
 func SelectResult(results []engine.SearchResult) (engine.SearchResult, error) {

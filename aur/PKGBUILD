@@ -1,6 +1,6 @@
 # Maintainer: Addereum
 pkgname=mov-cli-go-git
-pkgver=5.0.0
+pkgver=r1270.0b02ba5
 pkgrel=1
 pkgdesc="Watch everything from your terminal. (GoLang V5 Rewrite)"
 arch=('x86_64' 'aarch64')
@@ -10,13 +10,17 @@ depends=('mpv' 'yt-dlp')
 makedepends=('git' 'go')
 provides=('mov-cli')
 conflicts=('mov-cli' 'mov-cli-git')
+options=('!debug')
 source=("git+https://github.com/Addereum/mov-cli.git#branch=v5")
 sha256sums=('SKIP')
 
 pkgver() {
   cd "$srcdir/mov-cli"
-  git describe --long --tags 2>/dev/null | sed 's/\([^-]*-g\)/r\1/;s/-/./g' ||
-  printf "r%s.%s" "$(git rev-list --count HEAD)" "$(git rev-parse --short HEAD)"
+  if git describe --long --tags >/dev/null 2>&1; then
+    git describe --long --tags | sed 's/^v//;s/\([^-]*-g\)/r\1/;s/-/./g'
+  else
+    printf "r%s.%s" "$(git rev-list --count HEAD)" "$(git rev-parse --short HEAD)"
+  fi
 }
 
 build() {

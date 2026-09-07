@@ -1,4 +1,4 @@
-module mov-cli-go
+module github.com/Addereum/mov-cli
 
 go 1.27.0
 

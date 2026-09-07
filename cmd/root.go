@@ -3,17 +3,18 @@ package cmd
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/briandowns/spinner"
 
-	"mov-cli-go/internal/config"
-	"mov-cli-go/internal/engine"
-	"mov-cli-go/internal/player"
-	"mov-cli-go/internal/tui"
+	"github.com/Addereum/mov-cli/internal/config"
+	"github.com/Addereum/mov-cli/internal/engine"
+	"github.com/Addereum/mov-cli/internal/player"
+	"github.com/Addereum/mov-cli/internal/tui"
 )
+
+var scraperFlag string
 
 var rootCmd = &cobra.Command{
 	Use:   "mov-cli [query]",
@@ -25,16 +26,17 @@ var rootCmd = &cobra.Command{
 			query += " " + args[i]
 		}
 
+		pluginPath, err := config.FindPlugin(scraperFlag)
+		if err != nil {
+			fmt.Printf("[mov-cli] ❌ %v\n", err)
+			fmt.Println("Tip: Check available plugins with 'mov-cli plugin list' or install one with 'mov-cli plugin add <url>'")
+			os.Exit(1)
+		}
+
 		s := spinner.New(spinner.CharSets[14], 100*time.Millisecond)
-		s.Suffix = fmt.Sprintf(" 🔍 Scraping for '%s'...", query)
+		s.Suffix = fmt.Sprintf(" 🔍 Scraping [%s] for '%s'...", scraperFlag, query)
 		s.Color("cyan", "bold")
 		s.Start()
-
-		// For now, load youtube.js from local or config folder
-		pluginPath := filepath.Join(config.GetPluginsDir(), "youtube.js")
-		if _, err := os.Stat(pluginPath); os.IsNotExist(err) {
-			pluginPath = "plugins/youtube.js" // fallback for development
-		}
 
 		results, err := engine.RunJSPlugin(pluginPath, query)
 		s.Stop()
@@ -62,6 +64,10 @@ var rootCmd = &cobra.Command{
 			fmt.Printf("[mov-cli] ❌ Playback Error: %v\n", err)
 		}
 	},
+}
+
+func init() {
+	rootCmd.Flags().StringVarP(&scraperFlag, "scraper", "s", "youtube", "Scraper / plugin to use (default: youtube)")
 }
 
 func Execute() {

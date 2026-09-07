@@ -1,6 +1,6 @@
 package main
 
-import "mov-cli-go/cmd"
+import "github.com/Addereum/mov-cli/cmd"
 
 func main() {
 	cmd.Execute()

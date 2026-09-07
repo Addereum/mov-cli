@@ -10,13 +10,32 @@ The next generation of `mov-cli`, written entirely in Go.
 - **JavaScript Plugin Engine**: Write lightweight scrapers in pure JS that run on our embedded Go VM!
 
 ## 🧩 Plugin Ecosystem (New in V5)
-V5 comes with a built-in Plugin Manager. Plugins are simply lightweight `.js` files that run securely in our embedded JavaScript engine.
+V5 comes with a built-in Plugin Manager. Plugins are lightweight `.js` files that run securely in our embedded JavaScript engine.
 
-**Installing a plugin via URL (1-Click):**
+**Installing a plugin via URL:**
 ```bash
 mov-cli plugin add https://raw.githubusercontent.com/Addereum/mov-cli/v5/plugins/youtube.js
 ```
 The CLI automatically downloads the script to `~/.config/mov-cli/plugins/` and makes it immediately available.
+
+**Listing installed plugins:**
+```bash
+mov-cli plugin list
+```
+
+**Removing a plugin:**
+```bash
+mov-cli plugin remove youtube
+```
+
+**Using a specific scraper:**
+```bash
+# Default scraper is youtube
+mov-cli "Spongebob"
+
+# Explicitly choose a scraper / plugin
+mov-cli -s youtube "Spongebob"
+```
 
 ### 📚 Plugin Developer Documentation
 Want to write your own scraper? It's incredibly easy. We provide native HTTP fetching and HTML parsing (like jQuery) directly inside the JavaScript environment, meaning you don't even need `yt-dlp` or external libraries for most sites!

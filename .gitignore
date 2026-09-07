@@ -2,3 +2,10 @@
 .idea/
 .vscode/
 *.log
+mov-cli
+mov-cli-go
+aur/mov-cli/
+aur/src/
+aur/pkg/
+aur/*.pkg.tar.*
+
