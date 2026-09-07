@@ -2,6 +2,8 @@
 
 The next generation of `mov-cli`, written entirely in Go.
 
+> ⚠️ **Origins & Credits**: This project is a modern GoLang rewrite inspired by the original Python-based [mov-cli](https://github.com/mov-cli/mov-cli). Because the original developers have abandoned the project and it is no longer maintained, this repository was created to keep the project alive. We rebuilt it from the ground up in Go to solve previous dependency issues and make it faster!
+
 ## Why Go?
 - **Single Binary**: No Python, no dependencies, no hassle.
 - **Blazing Fast**: Native execution with Goroutine support.
