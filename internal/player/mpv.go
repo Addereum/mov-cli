@@ -5,15 +5,23 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"runtime"
+	"path/filepath"
 )
 
 func PlayVideo(url string) error {
 	ytdlp := exec.Command("yt-dlp", "-o", "-", url, "--js-runtimes", "node", "--remote-components", "ejs:github")
 	
-	mpvPath := os.ExpandEnv("C:\\Users\\lross\\Desktop\\mov\\mpv\\mpv.exe")
-	if _, err := os.Stat(mpvPath); os.IsNotExist(err) {
-		mpvPath = "mpv"
+	mpvPath := "mpv"
+	// Smart fallback for Windows users who use portable MPV
+	if runtime.GOOS == "windows" {
+		home, _ := os.UserHomeDir()
+		portableMpv := filepath.Join(home, "Desktop", "mov", "mpv", "mpv.exe")
+		if _, err := os.Stat(portableMpv); err == nil {
+			mpvPath = portableMpv
+		}
 	}
+
 	mpv := exec.Command(mpvPath, "-")
 
 	pipe, err := ytdlp.StdoutPipe()
