@@ -91,13 +91,22 @@
 - **[fzf](https://github.com/junegunn/fzf?tab=readme-ov-file#installation)** (optional but **highly recommended**)
 - **[mpv](https://mpv.io/installation/)** (recommended & default media player)
 
-To get running these are all the prerequisites you'll need.
+  To get running these are all the prerequisites you'll need.
+  
+  ### 🐧 Linux (Recommended)
+  You can quickly install this fork on any Linux system using our installation script:
+  ```sh
+  curl -sSL https://raw.githubusercontent.com/Addereum/mov-cli/v4/install.sh | bash
+  ```
 
-With the prerequisites installed, mov-cli can be installed via the pip command on all platforms with Python version 3.10 or above.
+  **Arch Linux (AUR):**
+  If you are using Arch Linux, you can install the fork natively using the provided `PKGBUILD` in the `aur` folder, or by building it manually. A pre-configured package is available via the source!
 
-```sh
-pip install mov-cli -U
-```
+  ### 🪟 Windows / Universal (pipx)
+  You can also manually install the fork on any OS via pip or pipx:
+  ```sh
+  pipx install git+https://github.com/Addereum/mov-cli.git
+  ```
 > Check out the [wiki on installation](https://github.com/mov-cli/mov-cli/wiki/Installation) for more in-depth guidance on installing mov-cli.
 
 ## Usage 🖱️

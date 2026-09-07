@@ -1,0 +1,30 @@
+# Maintainer: Addereum
+pkgname=mov-cli-addereum-git
+pkgver=4.0.0
+pkgrel=1
+pkgdesc="Watch everything from your terminal. (Active community fork)"
+arch=('any')
+url="https://github.com/Addereum/mov-cli"
+license=('MIT')
+depends=('python' 'python-requests' 'python-beautifulsoup4' 'python-lxml' 'yt-dlp' 'mpv')
+makedepends=('git' 'python-build' 'python-installer' 'python-wheel' 'python-setuptools')
+provides=('mov-cli')
+conflicts=('mov-cli' 'mov-cli-git')
+source=("git+https://github.com/Addereum/mov-cli.git")
+sha256sums=('SKIP')
+
+pkgver() {
+  cd "$srcdir/mov-cli"
+  git describe --long --tags 2>/dev/null | sed 's/\([^-]*-g\)/r\1/;s/-/./g' ||
+  printf "r%s.%s" "$(git rev-list --count HEAD)" "$(git rev-parse --short HEAD)"
+}
+
+build() {
+  cd "$srcdir/mov-cli"
+  python -m build --wheel --no-isolation
+}
+
+package() {
+  cd "$srcdir/mov-cli"
+  python -m installer --destdir="$pkgdir" dist/*.whl
+}
